@@ -70,7 +70,8 @@ builder.Services
     })
     .AddRoles<ApplicationRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager();
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
 
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException(
@@ -164,6 +165,11 @@ builder.Services.AddAuthorization(options =>
         "Permission:AUDIT_VIEW",
         policy => policy.Requirements.Add(
             new PermissionRequirement("AUDIT_VIEW")));
+
+    options.AddPolicy(
+    "Permission:USER_APPROVE_OR_REJECT",
+    policy => policy.Requirements.Add(
+        new PermissionRequirement("USER_APPROVE_OR_REJECT")));
 });
 
 builder.Services.AddScoped<
@@ -185,7 +191,8 @@ builder.Services.AddCors(options =>
                 "http://localhost:51147",
                 "http://localhost:51571",
                 "http://localhost:63982",
-                "http://localhost:64313"
+                "http://localhost:64313",
+                "http://localhost:53008"
             )
             .AllowAnyHeader()
             .AllowAnyMethod();

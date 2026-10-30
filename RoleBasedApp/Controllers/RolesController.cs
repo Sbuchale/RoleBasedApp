@@ -127,6 +127,48 @@ namespace RoleBasedApp.Controllers
                 new { role.Id, role.Name, role.Description });
         }
 
+        [HttpGet("active-for-user-request")]
+        [HasPermission("USER_VIEW")]
+        public async Task<IActionResult> GetActiveRolesForUserRequest()
+        {
+            var roles = await _db.Roles
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name
+                })
+                .ToListAsync();
+
+            return Ok(roles);
+        }
+
+        [HttpGet("{id:int}/permissions")]
+        [HasPermission("ROLE_VIEW")]
+        public async Task<IActionResult> GetRolePermissions(int id)
+        {
+            var role = await _db.Roles.FindAsync(id);
+
+            if (role == null)
+                return NotFound();
+
+            var permissions = await (
+                from rp in _db.RolePermissions
+                join p in _db.Permissions
+                    on rp.PermissionId equals p.Id
+                where rp.RoleId == id
+                select new
+                {
+                    menuId = rp.MenuId,
+                    permissionCode = p.Code,
+                    isAllowed = rp.IsAllowed
+                }
+            ).ToListAsync();
+
+            return Ok(permissions);
+        }
+
         [HttpPut("{id:int}/permissions")]
         [HasPermission("ROLE_ASSIGN")]
         public async Task<IActionResult> UpdatePermissions(
@@ -146,16 +188,19 @@ namespace RoleBasedApp.Controllers
                 });
             }
 
-            var permissionCodes = request.Permissions
-                .Select(x => x.PermissionCode)
-                .ToList();
+            var duplicatePermissions = request.Permissions
+                .GroupBy(x => new
+                {
+                    x.MenuId,
+                    x.PermissionCode
+                })
+                .Any(group => group.Count() > 1);
 
-            if (permissionCodes.Distinct().Count()
-                != permissionCodes.Count)
+            if (duplicatePermissions)
             {
                 return BadRequest(new
                 {
-                    message = "Duplicate permission codes were submitted."
+                    message = "Duplicate menu and permission combinations were submitted."
                 });
             }
 

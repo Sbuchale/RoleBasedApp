@@ -39,6 +39,9 @@ namespace RoleBasedApp.Controllers
             var user = await _userManager.FindByNameAsync(
                 request.Username);
 
+            Console.WriteLine(
+    $"Login debug: UserFound={user != null}, IsActive={user?.IsActive}");
+
             if (user == null || !user.IsActive)
             {
                 _audit.Add(
@@ -127,5 +130,36 @@ namespace RoleBasedApp.Controllers
 
             return Ok(user);
         }
+
+        [Authorize]
+        [HttpGet("my-permissions")]
+        public async Task<IActionResult> MyPermissions()
+        {
+            var idValue = User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(idValue, out var userId))
+                return Unauthorized();
+
+            var permissions = await (
+                from userRole in _db.UserRoles
+                join role in _db.Roles
+                    on userRole.RoleId equals role.Id
+                join rp in _db.RolePermissions
+                    on role.Id equals rp.RoleId
+                join permission in _db.Permissions
+                    on rp.PermissionId equals permission.Id
+                join menu in _db.Menus
+                    on rp.MenuId equals menu.Id
+                where userRole.UserId == userId
+                      && role.IsActive
+                      && rp.IsAllowed
+                      && menu.IsActive
+                select permission.Code
+            ).Distinct().ToListAsync();
+
+            return Ok(permissions);
+        }
+
     }
 }

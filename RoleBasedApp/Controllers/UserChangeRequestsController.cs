@@ -170,7 +170,7 @@ namespace RoleBasedApp.Controllers
         }
 
         [HttpGet("pending")]
-        [HasPermission("USER_APPROVE")]
+        [HasPermission("USER_APPROVE_OR_REJECT")]
         public async Task<IActionResult> Pending()
         {
             var requests = await _db.UserChangeRequests

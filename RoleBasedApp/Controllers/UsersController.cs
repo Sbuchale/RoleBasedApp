@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RoleBasedApp.Data;
 using RoleBasedApp.Security;
+using Microsoft.AspNetCore.Identity;
+using RoleBasedApp.Models;
 
 namespace RoleBasedApp.Controllers
 {
@@ -13,10 +15,14 @@ namespace RoleBasedApp.Controllers
     public class UsersController : ControllerBase
     {
         private readonly ApplicationDbContext _db;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public UsersController(ApplicationDbContext db)
+        public UsersController(
+     ApplicationDbContext db,
+     UserManager<ApplicationUser> userManager)
         {
             _db = db;
+            _userManager = userManager;
         }
 
         [HttpGet]
@@ -49,5 +55,75 @@ namespace RoleBasedApp.Controllers
 
             return Ok(users);
         }
+
+        [HttpPut("{id:int}/status")]
+        [HasPermission("USER_EDIT")]
+        public async Task<IActionResult> UpdateUserStatus(
+    int id,
+    [FromBody] bool isActive)
+        {
+            var user = await _userManager.FindByIdAsync(id.ToString());
+
+            if (user == null)
+                return NotFound("User not found.");
+
+            user.IsActive = isActive;
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    errors = result.Errors.Select(x => x.Description)
+                });
+            }
+
+            return Ok(new
+            {
+                message = "User status updated successfully.",
+                userId = user.Id,
+                userName = user.UserName,
+                isActive = user.IsActive
+            });
+        }
+
+        [HttpPut("{id:int}/reset-password")]
+        [HasPermission("USER_EDIT")]
+        public async Task<IActionResult> ResetUserPassword(
+    int id,
+    [FromBody] string newPassword)
+        {
+            var user = await _userManager.FindByIdAsync(id.ToString());
+
+            if (user == null)
+                return NotFound("User not found.");
+
+            if (string.IsNullOrWhiteSpace(newPassword))
+                return BadRequest("Password is required.");
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            var result = await _userManager.ResetPasswordAsync(
+                user,
+                token,
+                newPassword);
+
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    errors = result.Errors.Select(x => x.Description)
+                });
+            }
+
+            return Ok(new
+            {
+                message = "Password reset successfully.",
+                userId = user.Id,
+                userName = user.UserName
+            });
+        }
+
     }
 }

@@ -49,7 +49,16 @@ namespace RoleBasedApp.Security
                     where userRole.UserId == userId
                           && role.IsActive
                           && rp.IsAllowed
-                          && permission.Code == requirement.Permission
+                          && (
+    permission.Code == requirement.Permission
+    || (
+        requirement.Permission == "USER_APPROVE_OR_REJECT"
+        && (
+            permission.Code == "USER_APPROVE"
+            || permission.Code == "USER_REJECT"
+        )
+    )
+)
                           && menu.IsActive
 
                     select permission.Id
